@@ -104,7 +104,7 @@
 #define PM5_AUTOOFF_POLL_MS    250     // how often to sample VUSB
 #endif
 
-bool g_autooff_enabled = true;   // default on; toggled by CMD_PM5_BWM_AUTOOFF
+bool g_autooff_enabled = false;   // default OFF; toggled by CMD_PM5_BWM_AUTOOFF
 
 static bool s_autooff_setup = false;
 
@@ -117,6 +117,8 @@ static bool s_autooff_setup = false;
 static void bwm_autooff_check(void) {
     static uint32_t last_tick = 0;
     static bool usb_was_present = false;   // have we seen USB present since boot?
+    static uint32_t absent_since = 0;      // tick USB first went absent (0 = present / no pending off)
+    const uint32_t grace_ms = 5000;        // USB must be absent this long (continuous) before power-off
 
     if (g_autooff_enabled == false) {
         return;
@@ -133,19 +135,31 @@ static void bwm_autooff_check(void) {
 
     // Gpio_VUSB_Read() == true means USB power present.
     if (Gpio_VUSB_Read()) {
-        usb_was_present = true;   // latch: USB has been present this session
+        usb_was_present = true;   // latch: USB seen this session
+        absent_since = 0;         // present -> cancel any pending shutdown (debounce reset)
         return;
     }
 
-    // USB absent. Only power off if USB had previously been present (a real unplug).
-    // If it booted on battery and never saw USB, leave it running.
+    // USB absent. Only power off if USB had previously been present (a real unplug),
+    // and only after a continuous grace period (debounce vs. glitches / brown-outs).
     if (usb_was_present == false) {
+        return;
+    }
+    if (absent_since == 0) {
+        absent_since = GetTickCount();
+        return;
+    }
+    if (GetTickCountDelta(absent_since) < grace_ms) {
         return;
     }
 
     LEDsoff();
-    Gpio_ARM_Power_ON_Low();
-    while (1); // wait for hardware power-off (button press powers back on, in hardware)
+    Gpio_ARM_Power_ON_Low();               // release latch -> hardware cuts power (on battery)
+    for (uint32_t i = 0; i < 200000; i++) {
+        WDT_HIT();                         // bounded wait, NOT while(1): never hang if power holds
+    }
+    Gpio_ARM_Power_ON_High();              // still alive => false alarm: re-hold power and resume
+    absent_since = 0;
 }
 #endif // WITH_PM5_AUTOOFF
 

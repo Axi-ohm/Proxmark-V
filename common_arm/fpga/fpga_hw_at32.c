@@ -349,7 +349,7 @@ void FpgaResetComInterface(void) {
 
     // Init JTAG link of FPGA to waiting for fpga work status check.
     gpio_fpga_download_setup();
-    while (1) {
+    for (int retries = 0; retries < 50; retries++) {
         gowin_jtag_status_t status = gowin_jtag_init();
         if (status == GOWIN_JTAG_OK) {
             break;
