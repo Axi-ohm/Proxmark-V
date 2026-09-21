@@ -209,11 +209,11 @@ void RunMod(void) {
     if (exists_in_spiffs(HF_UNISNIFF_CONFIG)) {
 
         uint32_t fsize = size_in_spiffs(HF_UNISNIFF_CONFIG);
-        if (fsize > HF_UNISNIFF_CONFIG_SIZE) {
-            fsize = HF_UNISNIFF_CONFIG_SIZE;
+        if (fsize >= HF_UNISNIFF_CONFIG_SIZE) {
+            fsize = HF_UNISNIFF_CONFIG_SIZE - 1;
         }
 
-        char config_buffer[HF_UNISNIFF_CONFIG_SIZE];
+        char config_buffer[HF_UNISNIFF_CONFIG_SIZE] = {0};
         char *d = &config_buffer[0];
 
         rdv40_spiffs_read_as_filetype(HF_UNISNIFF_CONFIG
@@ -222,6 +222,7 @@ void RunMod(void) {
                                       , RDV40_SPIFFS_SAFETY_SAFE
                                      );
 
+        config_buffer[fsize] = 0;   // NUL-terminate before parsing (audit 2026-09-21)
         // This parser is terrible but I think fairly memory efficient?  Maybe better to use JSON?
         char *x = d;
         char *y = x;

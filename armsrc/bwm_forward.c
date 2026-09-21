@@ -113,7 +113,7 @@ int bwm_fwd_writebuffer_sync(const uint8_t *data, size_t len) {
 // into a byte FIFO that bwm_read_ng() drains. Non-DATA_FORWARD frames (slave
 // responses, forwarded logs, cmd-error reports) are validated and discarded.
 // ---------------------------------------------------------------------------
-#define BWM_DEFIFO_SZ     2048            // >= one full NG frame's payload
+#define BWM_DEFIFO_SZ     8192            // power of two > BWM_RXFRAME_MAX (audit 2026-09-21)
 #define BWM_RXFRAME_MAX   (PM3_CMD_DATA_SIZE + 64)
 
 typedef enum {
